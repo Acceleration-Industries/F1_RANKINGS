@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 RANKINGS</title>
+    <link rel="icon" type="image/x-icon" href="/static/photos/ferrari-favicon.jpg">
+    <link rel="stylesheet" href="../F1_page/css/main.css">
+    <script src="../F1_page/js/main.js"></script>
+    <link href="https://fonts.cdnfonts.com/css/monster-racing" rel="stylesheet">
+
+</head>
+
+<body>
+    <nav class="nav">
+        <div class="container">
+            <h1>F1 Rankings</h1>
+            <div class="dropdown">
+                <span class="dropdown-header">YEAR</span>
+                <div class="dropdown-content year-dropdown-content">
+
+                </div>
+            </div>
+            <div class="dropdown">
+                <span class="dropdown-header">RACE</span>
+                <div class="dropdown-content race-dropdown-content">
+
+                </div>
+            </div>
+            <div class="mode">
+                <span class="change">Scuderia Pista</span>
+            </div>
+        </div>
+    </nav>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <table class="header-table">
+                <thead>
+                    <tr>
+                        <th class="b">RANKING</th>
+                        <th class="b">DRIVER</th>
+                        <th class="b">POINTS</th>
+                        <th class="b">WINS</th>
+                        <th class="b">NATIONALITY</th>
+                        <th class="b">TEAM</th>
+                        <th class="b">AGE</th>
+                        <th class="b">DRIVER NUMBER</th>
+                        <th class="b">TEAM COUNTRY</th>
+                    </tr>
+                </thead>
+            </table>
+
+            <table id="f1-table" class="data-table">
+                <thead>
+
+                    <th>RANKING</th>
+                    <th>DRIVER</th>
+                    <th>POINTS</th>
+                    <th>WINS</th>
+                    <th>NATIONALITY</th>
+                    <th>TEAM</th>
+                    <th>AGE</th>
+                    <th>DRIVER NUMBER</th>
+                    <th>TEAM COUNTRY</th>
+
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.24.0/axios.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const fetchData = async (season, round) => {
+                try {
+                    const response = await axios.get(`http://ergast.com/api/f1/${season}/${round}/driverstandings.json`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                }
+            };
+
+            const populateYearDropdown = () => {
+                const currentYear = new Date().getFullYear();
+                const dropdownContent = document.querySelector('.year-dropdown-content');
+                dropdownContent.innerHTML = '';
+                for (let year = 1950; year <= currentYear; year++) {
+                    const option = document.createElement('div');
+                    option.textContent = year;
+                    option.classList.add('dropdown-option');
+                    option.addEventListener('click', async () => {
+                        document.querySelector('.dropdown-header').textContent = year;
+                        populateRaceDropdown(year);
+                    });
+                    dropdownContent.appendChild(option);
+                }
+            };
+
+            const populateRaceDropdown = async (year) => {
+                try {
+                    const response = await axios.get(`http://ergast.com/api/f1/${year}.json`);
+                    const races = response.data?.MRData?.RaceTable?.Races || [];
+                    const dropdownContent = document.querySelector('.race-dropdown-content');
+                    dropdownContent.innerHTML = '';
+                    races.forEach(race => {
+                        const option = document.createElement('div');
+                        option.textContent = race.raceName;
+                        option.classList.add('dropdown-option');
+                        option.addEventListener('click', async () => {
+                            const season = race.season;
+                            const round = race.round;
+                            const data = await fetchData(season, round);
+                            populateTable(data);
+                            document.getElementById('modal').style.display = 'block';
+                        });
+                        dropdownContent.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error fetching races:', error);
+                }
+            };
+
+            const populateTable = (data) => {
+                const table = document.getElementById('f1-table');
+                table.innerHTML = '';
+                data?.MRData?.StandingsTable?.StandingsLists?.forEach(list => {
+                    list.DriverStandings.forEach(driver => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${driver.position}</td>
+                            <td>${driver.Driver.givenName} ${driver.Driver.familyName}</td>
+                            <td>${driver.points}</td>
+                            <td>${driver.wins}</td>
+                            <td>${driver.Driver.nationality}</td>
+                            <td>${driver.Constructors[0].name}</td>
+                            <td>${calculateAge(driver.Driver.dateOfBirth)}</td>
+                            <td>${driver.Driver.permanentNumber}</td>
+                            <td>${driver.Constructors[0].nationality}</td>
+                        `;
+                        table.appendChild(row);
+                    });
+                });
+            };
+
+            const closeModal = () => {
+                document.getElementById('modal').style.display = 'none';
+            };
+
+            document.querySelector('.close').addEventListener('click', closeModal);
+
+            document.querySelector('.change').addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                const modeText = document.querySelector('.change');
+                modeText.textContent = document.body.classList.contains('dark-mode') ? 'LIGHT MODE' : 'DARK MODE';
+            });
+
+            const calculateAge = (dateOfBirth) => {
+                const dob = new Date(dateOfBirth);
+                const today = new Date();
+                let age = today.getFullYear() - dob.getFullYear();
+                const monthDiff = today.getMonth() - dob.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                    age--;
+                }
+                return age;
+            };
+
+            populateYearDropdown();
+        });
+    </script>
+</body>
+
+</html>
